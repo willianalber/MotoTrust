@@ -1,6 +1,6 @@
 # MotoTrust API
 
-Sistema de locação de motocicletas desenvolvido para um teste técnico. Basicamente é uma API que gerencia clientes, motos e aluguéis.
+Sistema de locação de motocicletas desenvolvido para um teste técnico. API que gerencia entregadores, motos e locações.
 
 ## Arquitetura
 
@@ -21,8 +21,8 @@ Tentei seguir algumas boas práticas aqui:
 MotoTrust/
 ├── MotoTrust.Domain/           # Camada de Domínio
 │   ├── Common/                 # Classes base (EntityBase, ValueObject, DomainEvent)
-│   ├── Entities/               # Entidades do domínio (Customer, Motorcycle, Rental)
-│   ├── ValueObjects/           # Objetos de valor (Email, CPF, PhoneNumber, Money)
+│   ├── Entities/               # Entidades do domínio (DeliveryPerson, Motorcycle, Rental)
+│   ├── ValueObjects/           # Objetos de valor (Money)
 │   ├── Enums/                  # Enumerações (MotorcycleStatus, RentalStatus, LicenseType)
 │   ├── Events/                 # Eventos de domínio
 │   └── Interfaces/             # Contratos dos repositórios
@@ -30,18 +30,14 @@ MotoTrust/
 │   ├── Commands/               # Comandos CQRS
 │   ├── Queries/                # Consultas CQRS
 │   ├── DTOs/                   # Data Transfer Objects
-│   ├── Mappings/               # Configurações do AutoMapper
-│   ├── Validators/             # Validadores FluentValidation
-│   └── Common/                 # Classes base da aplicação
+│   └── Validators/             # Validadores FluentValidation
 ├── MotoTrust.Infrastructure/   # Camada de Infraestrutura
 │   ├── Data/                   # DbContext e configurações do EF
 │   ├── Repositories/           # Implementações dos repositórios
 │   └── Configurations/         # Configurações das entidades
 ├── MotoTrust.API/              # Camada de Apresentação
-│   ├── Controllers/            # Controllers da API
-│   └── Middleware/             # Middlewares customizados
-├── MotoTrust.Tests.Unit/       # Testes Unitários
-└── MotoTrust.Tests.Integration/ # Testes de Integração
+│   └── Controllers/            # Controllers da API
+└── MotoTrust.Tests/            # Testes Unitários
 ```
 
 ## Tecnologias
@@ -99,25 +95,13 @@ dotnet run --project MotoTrust.API
 ```
 
 A API vai rodar em:
-- HTTPS: https://localhost:7001
-- HTTP: http://localhost:5001
-- Swagger: https://localhost:7001/swagger
+- HTTPS: https://localhost:7288
+- HTTP: http://localhost:5055
+- Swagger: https://localhost:7288/swagger (abre automaticamente)
 
 ## Testes
 
-### Testes unitários
-
-```bash
-dotnet test MotoTrust.Tests.Unit
-```
-
-### Testes de integração
-
-```bash
-dotnet test MotoTrust.Tests.Integration
-```
-
-### Todos os testes
+### Testes
 
 ```bash
 dotnet test
@@ -125,46 +109,44 @@ dotnet test
 
 ## Endpoints
 
-### Clientes
-
-- `POST /api/customers` - Criar cliente
-- `GET /api/customers/{id}` - Buscar cliente por ID
-
 ### Motos
 
-- `POST /api/motorcycles` - Cadastrar moto
-- `GET /api/motorcycles` - Listar motos
-- `GET /api/motorcycles/{id}` - Buscar moto por ID
-- `PUT /api/motorcycles/{id}` - Atualizar moto
-- `DELETE /api/motorcycles/{id}` - Deletar moto
+- `POST /api/motorcycle` - Cadastrar moto
+- `GET /api/motorcycle/{id}` - Buscar moto por ID
+- `GET /api/motorcycle?placa={placa}` - Listar motos por placa
+- `PUT /api/motorcycle/{id}/placa` - Atualizar placa da moto
+- `DELETE /api/motorcycle/{id}` - Deletar moto (exclusão lógica)
 
-### Aluguéis
+### Entregadores
 
-- `POST /api/rentals` - Criar aluguel
-- `GET /api/rentals` - Listar aluguéis
-- `GET /api/rentals/{id}` - Buscar aluguel por ID
-- `PUT /api/rentals/{id}/complete` - Finalizar aluguel
-- `PUT /api/rentals/{id}/cancel` - Cancelar aluguel
+- `POST /api/entregadores` - Cadastrar entregador
+- `POST /api/entregadores/{id}/cnh` - Enviar foto da CNH
+
+### Locações
+
+- `POST /api/locacao` - Criar locação
+- `GET /api/locacao/{id}` - Buscar locação por ID
+- `PUT /api/locacao/{id}/devolucao` - Informar data de devolução
 
 ## Arquitetura (resumo)
 
 ### DDD
 
-- **Entidades**: Customer, Motorcycle, Rental
-- **Value Objects**: Email, CPF, PhoneNumber, Money
+- **Entidades**: DeliveryPerson, Motorcycle, Rental
+- **Value Objects**: Money
 - **Enums**: MotorcycleStatus, RentalStatus, LicenseType
-- **Eventos**: CustomerCreatedEvent, MotorcycleRentedEvent, etc.
+- **Eventos**: MotorcycleRentedEvent
 
 ### CQRS
 
-- **Commands**: CreateCustomerCommand, CreateMotorcycleCommand, etc.
-- **Queries**: GetCustomerByIdQuery, GetAvailableMotorcyclesQuery, etc.
-- **Handlers**: CreateCustomerCommandHandler, GetCustomerByIdQueryHandler, etc.
+- **Commands**: CreateMotorcycleCommand, CreateDeliveryPersonCommand, CreateRentalCommand, etc.
+- **Queries**: GetMotorcycleByIdQuery, GetMotorcyclesByPlateQuery, GetRentalByIdQuery, etc.
+- **Handlers**: CreateMotorcycleCommandHandler, GetMotorcycleByIdQueryHandler, etc.
 
 ### Repository
 
-- **Interfaces**: ICustomerRepository, IMotorcycleRepository, IRentalRepository
-- **Implementações**: CustomerRepository, MotorcycleRepository, RentalRepository
+- **Interfaces**: IDeliveryPersonRepository, IMotorcycleRepository, IRentalRepository
+- **Implementações**: DeliveryPersonRepository, MotorcycleRepository, RentalRepository
 - **Unit of Work**: IUnitOfWork para transações
 
 ## Configurações
@@ -179,45 +161,68 @@ Uso Serilog para logs:
 ### Validação
 
 - FluentValidation para validações
-- Validações de domínio nas entidades
-- Validação automática nos controllers
+- Validações centralizadas nos Commands
+- Método `IsValid()` em cada Command
 
-### Mapeamento
+## Melhorias Implementadas
 
-- AutoMapper entre DTOs e entidades
-- Mapeamento customizado para value objects
+### Validação com FluentValidation
+- Validações movidas dos handlers para os commands
+- Método `IsValid()` otimizado que retorna apenas a mensagem de erro
+- Validações centralizadas e reutilizáveis
+
+### Estrutura do Projeto
+- Remoção de classes não utilizadas (Customer, Value Objects desnecessários)
+- Limpeza de arquivos e pastas vazias
+- Organização otimizada do código
+
+### Configurações
+- Swagger configurado para abrir automaticamente no navegador
+- Portas atualizadas para o ambiente de desenvolvimento
 
 ## Exemplos
-
-### Criar cliente
-
-```bash
-curl -X POST "https://localhost:7001/api/customers" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "João Silva",
-    "email": "joao.silva@email.com",
-    "phoneNumber": "11999999999",
-    "cpf": "12345678901",
-    "licenseType": 1,
-    "licenseNumber": "123456789"
-  }'
-```
 
 ### Cadastrar moto
 
 ```bash
-curl -X POST "https://localhost:7001/api/motorcycles" \
+curl -X POST "https://localhost:7288/api/motorcycle" \
   -H "Content-Type: application/json" \
   -d '{
-    "brand": "Honda",
-    "model": "CB 600F",
-    "year": 2023,
-    "licensePlate": "ABC1234",
-    "color": "Vermelha",
-    "engineCapacity": 600,
-    "dailyRate": 150.00,
-    "currency": "BRL"
+    "identificador": "moto123",
+    "ano": 2020,
+    "modelo": "Mottu Sport",
+    "placa": "CDX-0101"
+  }'
+```
+
+### Cadastrar entregador
+
+```bash
+curl -X POST "https://localhost:7288/api/entregadores" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "identificador": "entregador123",
+    "nome": "João da Silva",
+    "cnpj": "12345678901234",
+    "data_nascimento": "1990-01-01T00:00:00Z",
+    "numero_cnh": "12345678900",
+    "tipo_cnh": "A",
+    "imagem_cnh": "base64string"
+  }'
+```
+
+### Criar locação
+
+```bash
+curl -X POST "https://localhost:7288/api/locacao" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "entregador_id": "entregador123",
+    "moto_id": "moto123",
+    "data_inicio": "2024-01-01T00:00:00Z",
+    "data_termino": "2024-01-07T23:59:59Z",
+    "data_previsao_termino": "2024-01-07T23:59:59Z",
+    "plano": 7
   }'
 ```
 
