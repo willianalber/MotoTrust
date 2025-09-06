@@ -7,7 +7,7 @@ using MotoTrust.Application.Queries.Motorcycle;
 namespace MotoTrust.API.Controllers;
 
 [ApiController]
-[Route("api/motos")]
+[Route("/motos")]
 public class MotorcycleController : ControllerBase
 {
     private readonly IMediator _mediator;

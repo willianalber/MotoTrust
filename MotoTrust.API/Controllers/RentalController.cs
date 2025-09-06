@@ -7,7 +7,7 @@ using MotoTrust.Application.Queries.Rental;
 namespace MotoTrust.API.Controllers;
 
 [ApiController]
-[Route("api/locacao")]
+[Route("/locacao")]
 public class RentalController : ControllerBase
 {
     private readonly IMediator _mediator;

@@ -6,7 +6,7 @@ using MotoTrust.Application.DTOs;
 namespace MotoTrust.API.Controllers;
 
 [ApiController]
-[Route("api/entregadores")]
+[Route("/entregadores")]
 public class DeliveryPersonController : ControllerBase
 {
     private readonly IMediator _mediator;
