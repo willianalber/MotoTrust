@@ -18,6 +18,25 @@ services:
     networks:
       - mototrust-network
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: mototrust-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mototrust-network
+
   app:
     build:
       context: .
@@ -26,12 +45,37 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     ports:
       - "5000:5000"
       - "5001:5001"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=MotoTrust;Username=postgres;Password=postgres;Port=5432
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=admin
+      - RabbitMQ__Password=admin123
+    networks:
+      - mototrust-network
+    volumes:
+      - .:/app
+      - /app/bin
+      - /app/obj
+
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile.Consumer
+    container_name: mototrust-consumer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=admin
+      - RabbitMQ__Password=admin123
     networks:
       - mototrust-network
     volumes:
@@ -41,6 +85,7 @@ services:
 
 volumes:
   postgres_data:
+  rabbitmq_data:
 
 networks:
   mototrust-network:

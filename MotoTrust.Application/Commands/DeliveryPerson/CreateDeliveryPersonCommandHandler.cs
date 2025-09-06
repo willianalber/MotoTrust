@@ -19,21 +19,17 @@ public class CreateDeliveryPersonCommandHandler : IRequestHandler<CreateDelivery
 
     public async Task<SuccessResponseDto> Handle(CreateDeliveryPersonCommand request, CancellationToken cancellationToken)
     {
-        // Validação usando FluentValidation
         var errorMessage = request.IsValid();
         if (!string.IsNullOrEmpty(errorMessage))
             throw new ArgumentException(errorMessage);
 
-        // Verifica se o tipo de CNH é válido
         if (!Enum.TryParse<LicenseType>(request.TipoCNH, out var tipoCNH))
             throw new ArgumentException("Tipo de CNH inválido");
 
-        // Verifica se já existe entregador com esse identificador
         var existingDeliveryPerson = await _deliveryPersonRepository.GetByIdentificadorAsync(request.Identificador);
         if (existingDeliveryPerson != null)
             throw new ArgumentException("Já existe um entregador com esse identificador");
 
-        // Cria o entregador
         var deliveryPerson = new Domain.Entities.DeliveryPerson(
             request.Identificador,
             request.Nome,
@@ -44,7 +40,6 @@ public class CreateDeliveryPersonCommandHandler : IRequestHandler<CreateDelivery
             request.ImagemCNH
         );
 
-        // Salva no banco
         await _deliveryPersonRepository.AddAsync(deliveryPerson);
         await _unitOfWork.SaveChangesAsync();
 

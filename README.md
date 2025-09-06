@@ -1,19 +1,20 @@
 # MotoTrust API
 
-Sistema de locação de motocicletas desenvolvido para um teste técnico. API que gerencia entregadores, motos e locações.
+Sistema de locação de motocicletas. API REST que gerencia entregadores, motos e locações.
 
 ## Arquitetura
 
-Tentei seguir algumas boas práticas aqui:
+Tentei aplicar algumas boas práticas que aprendi ao longo do tempo:
 
 - **CQRS** com MediatR (separação de comandos e consultas)
-- **DDD** (Domain Driven Design) - pelo menos tentei
+- **DDD** (Domain Driven Design) - pelo menos tentei seguir os conceitos
 - **Repository Pattern** com Unit of Work
 - **Entity Framework Core** com PostgreSQL
 - **FluentValidation** para validações
 - **AutoMapper** para mapear objetos
 - **ILogger** para logs
 - **Swagger** para documentar a API
+- **MassTransit + RabbitMQ** para eventos assíncronos
 
 ## 📁 Estrutura do Projeto
 
@@ -50,6 +51,8 @@ MotoTrust/
 - FluentValidation 12.0
 - AutoMapper 15.0
 - Microsoft.Extensions.Logging 9.0
+- MassTransit 8.1.3 (RabbitMQ)
+- RabbitMQ 3-management
 - Swagger/OpenAPI
 - xUnit (para testes)
 - FluentAssertions
@@ -71,18 +74,22 @@ start-docker.bat
 - API: http://localhost:5000
 - Swagger: http://localhost:5000/swagger
 - PostgreSQL: localhost:5432
+- RabbitMQ Management: http://localhost:15672 (admin/admin123)
 
 ### Desenvolvimento Local
 
 ```bash
-# 1. Iniciar apenas PostgreSQL no Docker
-docker-compose up -d postgres
+# 1. Iniciar PostgreSQL e RabbitMQ no Docker
+docker-compose up -d postgres rabbitmq
 
 # 2. Executar migrações
 dotnet ef database update --project MotoTrust.Infrastructure --startup-project MotoTrust.API
 
 # 3. Executar a aplicação
 dotnet run --project MotoTrust.API
+
+# 4. Executar o Consumer (em outro terminal)
+dotnet run --project MotoTrust.Consumer
 ```
 
 **Ou usar o script:**
@@ -133,6 +140,46 @@ A API vai rodar em:
 - HTTPS: https://localhost:7288
 - HTTP: http://localhost:5055
 - Swagger: https://localhost:7288/swagger (abre automaticamente)
+
+## Sistema de Eventos (RabbitMQ)
+
+Implementei um sistema de eventos usando **MassTransit** com **RabbitMQ** para processar algumas ações de forma assíncrona.
+
+### Como funciona
+
+1. Quando uma moto é alugada, o `CreateRentalCommandHandler` publica um `MotorcycleRentedEvent`
+2. O evento vai para uma fila do RabbitMQ
+3. O `MotoTrust.Consumer` consome o evento e faz o que precisa
+
+### Eventos Disponíveis
+
+- **MotorcycleRentedEvent**: Disparado quando uma moto é alugada
+
+### Por que usei isso?
+
+- **Desacoplamento**: A API não precisa esperar processamento de eventos
+- **Escalabilidade**: Posso ter vários consumers processando
+- **Resiliência**: Os eventos ficam persistidos no RabbitMQ
+- **Extensibilidade**: Fácil adicionar novos consumers
+
+### Exemplo de Uso
+
+```csharp
+// No CreateRentalCommandHandler
+var @event = new MotorcycleRentedEvent(rental.Id, rental.EntregadorId, rental.MotoId, 
+    rental.DataInicio, rental.DataPrevisaoTermino);
+await _publishEndpoint.Publish(@event, cancellationToken);
+```
+
+### Consumer
+
+O Consumer pode implementar várias coisas:
+- Envio de emails de confirmação
+- Notificações push
+- Atualização de métricas
+- Integração com GPS
+- Auditoria e logs
+- Integração com pagamentos
 
 ## Testes
 

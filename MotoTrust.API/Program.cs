@@ -1,16 +1,17 @@
+using MassTransit;
 using MotoTrust.API.Middleware;
 using MotoTrust.Application;
 using MotoTrust.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure logging
+// Configuração de logging
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 builder.Logging.AddEventSourceLogger();
 
-// Add services to the container
+// Serviços básicos
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -19,7 +20,7 @@ builder.Services.AddSwaggerGen(c =>
     c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, "MotoTrust.API.xml"));
 });
 
-// Add CORS
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -30,13 +31,28 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Add application services
+// Serviços da aplicação
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
+// MassTransit para eventos
+builder.Services.AddMassTransit(x =>
+{
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbitConfig = builder.Configuration.GetSection("RabbitMQ");
+        cfg.Host(rabbitConfig["Host"], "/", h =>
+        {
+            h.Username(rabbitConfig["Username"]);
+            h.Password(rabbitConfig["Password"]);
+        });
+        cfg.ConfigureEndpoints(context);
+    });
+});
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
+// Pipeline da aplicação
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -61,5 +77,5 @@ try
 }
 catch (Exception ex)
 {
-    logger.LogCritical(ex, "Aplicação terminou inesperadamente - algo deu errado");
+    logger.LogCritical(ex, "Aplicação terminou inesperadamente");
 }

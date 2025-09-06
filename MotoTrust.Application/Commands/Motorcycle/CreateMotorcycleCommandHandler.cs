@@ -28,7 +28,6 @@ public class CreateMotorcycleCommandHandler : IRequestHandler<CreateMotorcycleCo
     {
         _logger.LogInformation("Iniciando criação de moto com identificador {Identificador}", request.Identificador);
 
-        // Validação usando FluentValidation
         var errorMessage = request.IsValid();
         if (!string.IsNullOrEmpty(errorMessage))
         {
@@ -36,26 +35,24 @@ public class CreateMotorcycleCommandHandler : IRequestHandler<CreateMotorcycleCo
             throw new ArgumentException(errorMessage);
         }
 
-        // Cria a moto com valores padrão
+        // Valores padrão para campos não obrigatórios
         var motorcycle = new Domain.Entities.Motorcycle(
-            "Mottu", // marca padrão
+            "Mottu",
             request.Modelo,
             request.Ano,
             request.Placa,
-            "Branca", // cor padrão
-            150, // cilindrada padrão
-            new Money(100.00m, "BRL") // preço diário padrão
+            "Branca",
+            150,
+            new Money(100.00m, "BRL")
         );
 
         _logger.LogInformation("Criando moto {Modelo} {Ano} com placa {Placa}", request.Modelo, request.Ano, request.Placa);
 
-        // Salva no banco
         await _motorcycleRepository.AddAsync(motorcycle);
         await _unitOfWork.SaveChangesAsync();
 
         _logger.LogInformation("Moto criada com sucesso. ID: {MotorcycleId}", motorcycle.Id);
 
-        // Retorna o DTO de resposta
         return new CreateMotorcycleResponseDto
         {
             Id = motorcycle.Id,
