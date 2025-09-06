@@ -12,7 +12,7 @@ Tentei seguir algumas boas práticas aqui:
 - **Entity Framework Core** com PostgreSQL
 - **FluentValidation** para validações
 - **AutoMapper** para mapear objetos
-- **Serilog** para logs
+- **ILogger** para logs
 - **Swagger** para documentar a API
 
 ## 📁 Estrutura do Projeto
@@ -49,7 +49,7 @@ MotoTrust/
 - MediatR 13.0
 - FluentValidation 12.0
 - AutoMapper 15.0
-- Serilog 4.0
+- Microsoft.Extensions.Logging 9.0
 - Swagger/OpenAPI
 - xUnit (para testes)
 - FluentAssertions
@@ -153,10 +153,11 @@ dotnet test
 
 ### Logs
 
-Uso Serilog para logs:
+Uso ILogger padrão do .NET:
 - Console com formatação
-- Arquivos com rotação diária
-- Logs estruturados
+- Debug output
+- EventSource logging
+- Logs estruturados com parâmetros
 
 ### Validação
 
@@ -179,6 +180,7 @@ Uso Serilog para logs:
 ### Configurações
 - Swagger configurado para abrir automaticamente no navegador
 - Portas atualizadas para o ambiente de desenvolvimento
+- Migração de Serilog para ILogger padrão do .NET
 
 ## Exemplos
 

@@ -1,19 +1,14 @@
 using MotoTrust.API.Middleware;
 using MotoTrust.Application;
 using MotoTrust.Infrastructure;
-using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Serilog
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .WriteTo.File("logs/mototrust-.txt", rollingInterval: RollingInterval.Day)
-    .CreateLogger();
-
-builder.Host.UseSerilog();
+// Configure logging
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+builder.Logging.AddEventSourceLogger();
 
 // Add services to the container
 builder.Services.AddControllers();
@@ -54,20 +49,17 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseMiddleware<ErrorHandlingMiddleware>();
-app.UseSerilogRequestLogging();
 app.UseAuthorization();
 app.MapControllers();
 
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
 try
 {
-    Log.Information("Iniciando MotoTrust API - sistema de locação de motos");
+    logger.LogInformation("Iniciando MotoTrust API - sistema de locação de motos");
     app.Run();
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "Aplicação terminou inesperadamente - algo deu errado");
-}
-finally
-{
-    Log.CloseAndFlush();
+    logger.LogCritical(ex, "Aplicação terminou inesperadamente - algo deu errado");
 }

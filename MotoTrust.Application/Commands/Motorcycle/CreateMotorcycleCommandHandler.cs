@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
 using MotoTrust.Application.DTOs;
 using MotoTrust.Domain.Entities;
 using MotoTrust.Domain.Enums;
@@ -11,19 +12,29 @@ public class CreateMotorcycleCommandHandler : IRequestHandler<CreateMotorcycleCo
 {
     private readonly IMotorcycleRepository _motorcycleRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<CreateMotorcycleCommandHandler> _logger;
 
-    public CreateMotorcycleCommandHandler(IMotorcycleRepository motorcycleRepository, IUnitOfWork unitOfWork)
+    public CreateMotorcycleCommandHandler(
+        IMotorcycleRepository motorcycleRepository, 
+        IUnitOfWork unitOfWork,
+        ILogger<CreateMotorcycleCommandHandler> logger)
     {
         _motorcycleRepository = motorcycleRepository;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<CreateMotorcycleResponseDto> Handle(CreateMotorcycleCommand request, CancellationToken cancellationToken)
     {
+        _logger.LogInformation("Iniciando criação de moto com identificador {Identificador}", request.Identificador);
+
         // Validação usando FluentValidation
         var errorMessage = request.IsValid();
         if (!string.IsNullOrEmpty(errorMessage))
+        {
+            _logger.LogWarning("Validação falhou para moto {Identificador}: {ErrorMessage}", request.Identificador, errorMessage);
             throw new ArgumentException(errorMessage);
+        }
 
         // Cria a moto com valores padrão
         var motorcycle = new Domain.Entities.Motorcycle(
@@ -36,9 +47,13 @@ public class CreateMotorcycleCommandHandler : IRequestHandler<CreateMotorcycleCo
             new Money(100.00m, "BRL") // preço diário padrão
         );
 
+        _logger.LogInformation("Criando moto {Modelo} {Ano} com placa {Placa}", request.Modelo, request.Ano, request.Placa);
+
         // Salva no banco
         await _motorcycleRepository.AddAsync(motorcycle);
         await _unitOfWork.SaveChangesAsync();
+
+        _logger.LogInformation("Moto criada com sucesso. ID: {MotorcycleId}", motorcycle.Id);
 
         // Retorna o DTO de resposta
         return new CreateMotorcycleResponseDto
