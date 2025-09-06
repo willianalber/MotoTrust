@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:14
+    container_name: mototrust-postgres
+    environment:
+      POSTGRES_DB: MotoTrust
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mototrust-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mototrust-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=MotoTrust;Username=postgres;Password=postgres;Port=5432
+    networks:
+      - mototrust-network
+    volumes:
+      - .:/app
+      - /app/bin
+      - /app/obj
+
+volumes:
+  postgres_data:
+
+networks:
+  mototrust-network:
+    driver: bridge

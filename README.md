@@ -55,6 +55,41 @@ MotoTrust/
 - FluentAssertions
 - Moq
 
+## 🐳 Docker Setup (Recomendado)
+
+### Iniciar com Docker
+
+```bash
+# Iniciar tudo com Docker
+docker-compose up --build
+
+# Ou usar o script (Windows)
+start-docker.bat
+```
+
+**URLs disponíveis:**
+- API: http://localhost:5000
+- Swagger: http://localhost:5000/swagger
+- PostgreSQL: localhost:5432
+
+### Desenvolvimento Local
+
+```bash
+# 1. Iniciar apenas PostgreSQL no Docker
+docker-compose up -d postgres
+
+# 2. Executar migrações
+dotnet ef database update --project MotoTrust.Infrastructure --startup-project MotoTrust.API
+
+# 3. Executar a aplicação
+dotnet run --project MotoTrust.API
+```
+
+**Ou usar o script:**
+```bash
+start-dev.bat  # Windows
+```
+
 ## Como rodar
 
 ### O que você precisa
