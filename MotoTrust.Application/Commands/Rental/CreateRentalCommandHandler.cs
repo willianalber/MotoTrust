@@ -39,6 +39,10 @@ public class CreateRentalCommandHandler : IRequestHandler<CreateRentalCommand, S
         if (entregador == null)
             throw new ArgumentException("Entregador não encontrado");
 
+        // Validação: Somente entregadores com CNH tipo A ou AB podem alugar motos
+        if (entregador.TipoCNH != Domain.Enums.LicenseType.A && entregador.TipoCNH != Domain.Enums.LicenseType.AB)
+            throw new ArgumentException("Somente entregadores com CNH tipo A ou AB podem alugar motos");
+
         // Por enquanto usando ID como string - depois implementar busca por identificador
         var moto = await _motorcycleRepository.GetAllAsync();
         var motoEncontrada = moto.FirstOrDefault(m => m.Id.ToString().Contains(request.MotoId));
@@ -54,8 +58,7 @@ public class CreateRentalCommandHandler : IRequestHandler<CreateRentalCommand, S
             request.DataInicio,
             request.DataTermino,
             request.DataPrevisaoTermino,
-            motoEncontrada.DailyRate.Amount,
-            request.Plano
+            request.GetRentalPlan()
         );
 
         motoEncontrada.Rent();

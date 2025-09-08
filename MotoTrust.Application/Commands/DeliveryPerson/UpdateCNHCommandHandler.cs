@@ -1,5 +1,6 @@
 using MediatR;
 using MotoTrust.Application.DTOs;
+using MotoTrust.Application.Interfaces;
 using MotoTrust.Domain.Interfaces;
 
 namespace MotoTrust.Application.Commands.DeliveryPerson;
@@ -8,11 +9,16 @@ public class UpdateCNHCommandHandler : IRequestHandler<UpdateCNHCommand, Success
 {
     private readonly IDeliveryPersonRepository _deliveryPersonRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IImageStorageService _imageStorageService;
 
-    public UpdateCNHCommandHandler(IDeliveryPersonRepository deliveryPersonRepository, IUnitOfWork unitOfWork)
+    public UpdateCNHCommandHandler(
+        IDeliveryPersonRepository deliveryPersonRepository, 
+        IUnitOfWork unitOfWork,
+        IImageStorageService imageStorageService)
     {
         _deliveryPersonRepository = deliveryPersonRepository;
         _unitOfWork = unitOfWork;
+        _imageStorageService = imageStorageService;
     }
 
     public async Task<SuccessResponseDto> Handle(UpdateCNHCommand request, CancellationToken cancellationToken)
@@ -26,8 +32,17 @@ public class UpdateCNHCommandHandler : IRequestHandler<UpdateCNHCommand, Success
         if (deliveryPerson == null)
             throw new ArgumentException("Entregador não encontrado");
 
+        // Remove a imagem antiga se existir
+        if (!string.IsNullOrEmpty(deliveryPerson.ImagemCNH))
+        {
+            await _imageStorageService.DeleteImageAsync(deliveryPerson.ImagemCNH);
+        }
+
+        // Salva a nova imagem
+        var imageFileName = await _imageStorageService.SaveImageAsync(request.ImagemCNH, $"cnh_{deliveryPerson.Identificador}");
+
         // Atualiza a imagem da CNH
-        deliveryPerson.UpdateCNHImage(request.ImagemCNH);
+        deliveryPerson.UpdateCNHImage(imageFileName);
 
         // Salva no banco
         await _unitOfWork.SaveChangesAsync();

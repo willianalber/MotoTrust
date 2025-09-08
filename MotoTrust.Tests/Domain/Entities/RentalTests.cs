@@ -19,7 +19,7 @@ public class RentalTests
         var plano = 3;
 
         // Act
-        var rental = new Rental(entregadorId, motoId, dataInicio, dataTermino, dataPrevisaoTermino, valorDiaria, plano);
+        var rental = new Rental(entregadorId, motoId, dataInicio, dataTermino, dataPrevisaoTermino, RentalPlan.SevenDays);
 
         // Assert
         rental.EntregadorId.Should().Be(entregadorId);
@@ -27,8 +27,8 @@ public class RentalTests
         rental.DataInicio.Should().Be(dataInicio);
         rental.DataTermino.Should().Be(dataTermino);
         rental.DataPrevisaoTermino.Should().Be(dataPrevisaoTermino);
-        rental.ValorDiaria.Should().Be(valorDiaria);
-        rental.Plano.Should().Be(plano);
+        rental.ValorDiaria.Should().Be(30.00m); // Valor do plano de 7 dias
+        rental.Plano.Should().Be(7);
         rental.Status.Should().Be(RentalStatus.Active);
     }
 
@@ -43,7 +43,7 @@ public class RentalTests
         var dataPrevisaoTermino = DateTime.UtcNow.AddDays(3);
         var valorDiaria = 100.00m;
         var plano = 3;
-        var rental = new Rental(entregadorId, motoId, dataInicio, dataTermino, dataPrevisaoTermino, valorDiaria, plano);
+        var rental = new Rental(entregadorId, motoId, dataInicio, dataTermino, dataPrevisaoTermino, RentalPlan.SevenDays);
 
         // Act
         rental.Complete();
@@ -63,7 +63,7 @@ public class RentalTests
         var dataPrevisaoTermino = DateTime.UtcNow.AddDays(3);
         var valorDiaria = 100.00m;
         var plano = 3;
-        var rental = new Rental(entregadorId, motoId, dataInicio, dataTermino, dataPrevisaoTermino, valorDiaria, plano);
+        var rental = new Rental(entregadorId, motoId, dataInicio, dataTermino, dataPrevisaoTermino, RentalPlan.SevenDays);
 
         // Act
         rental.Cancel();
@@ -83,7 +83,7 @@ public class RentalTests
         var dataPrevisaoTermino = DateTime.UtcNow.AddDays(3);
         var valorDiaria = 100.00m;
         var plano = 3;
-        var rental = new Rental(entregadorId, motoId, dataInicio, dataTermino, dataPrevisaoTermino, valorDiaria, plano);
+        var rental = new Rental(entregadorId, motoId, dataInicio, dataTermino, dataPrevisaoTermino, RentalPlan.SevenDays);
         rental.Complete();
 
         // Act & Assert
@@ -105,13 +105,13 @@ public class RentalTests
         var plano = 3;
 
         // Act & Assert
-        var action = () => new Rental(entregadorId, motoId, dataInicio, dataTermino, dataPrevisaoTermino, valorDiaria, plano);
+        var action = () => new Rental(entregadorId, motoId, dataInicio, dataTermino, dataPrevisaoTermino, RentalPlan.SevenDays);
         action.Should().Throw<ArgumentException>()
             .WithMessage("Data de início não pode ser no passado*");
     }
 
     [Fact]
-    public void CreateRental_WithInvalidValorDiaria_ShouldThrowException()
+    public void CreateRental_WithInvalidPlano_ShouldThrowException()
     {
         // Arrange
         var entregadorId = "entregador123";
@@ -119,12 +119,10 @@ public class RentalTests
         var dataInicio = DateTime.UtcNow.AddDays(1);
         var dataTermino = DateTime.UtcNow.AddDays(3);
         var dataPrevisaoTermino = DateTime.UtcNow.AddDays(3);
-        var valorDiaria = 0m; // Valor inválido
-        var plano = 3;
 
-        // Act & Assert
-        var action = () => new Rental(entregadorId, motoId, dataInicio, dataTermino, dataPrevisaoTermino, valorDiaria, plano);
+        // Act & Assert - Usando um valor inválido para o enum (99 dias)
+        var action = () => new Rental(entregadorId, motoId, dataInicio, dataTermino, dataPrevisaoTermino, (RentalPlan)99);
         action.Should().Throw<ArgumentException>()
-            .WithMessage("Valor da diária deve ser maior que zero*");
+            .WithMessage("Plano inválido*");
     }
 }

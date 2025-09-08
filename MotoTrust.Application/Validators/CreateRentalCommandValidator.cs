@@ -1,5 +1,6 @@
 using FluentValidation;
 using MotoTrust.Application.Commands.Rental;
+using MotoTrust.Domain.Enums;
 
 namespace MotoTrust.Application.Validators;
 
@@ -22,8 +23,8 @@ public class CreateRentalCommandValidator : AbstractValidator<CreateRentalComman
         RuleFor(x => x.DataInicio)
             .NotEmpty()
             .WithMessage("Data de início é obrigatória")
-            .GreaterThan(DateTime.UtcNow.Date)
-            .WithMessage("Data de início deve ser no futuro");
+            .Equal(DateTime.UtcNow.Date.AddDays(1))
+            .WithMessage("Data de início deve ser exatamente o primeiro dia após a data de criação");
 
         RuleFor(x => x.DataTermino)
             .NotEmpty()
@@ -38,9 +39,7 @@ public class CreateRentalCommandValidator : AbstractValidator<CreateRentalComman
             .WithMessage("Data de previsão de término deve ser posterior ou igual à data de início");
 
         RuleFor(x => x.Plano)
-            .GreaterThan(0)
-            .WithMessage("Plano deve ser maior que zero")
-            .LessThanOrEqualTo(365)
-            .WithMessage("Plano deve ser menor ou igual a 365 dias");
+            .Must(plano => RentalPlanExtensions.IsValidPlan(plano))
+            .WithMessage("Plano inválido. Planos válidos: 7, 15, 30, 45, 50 dias");
     }
 }

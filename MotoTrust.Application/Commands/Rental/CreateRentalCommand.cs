@@ -1,6 +1,7 @@
 using MediatR;
 using MotoTrust.Application.DTOs;
 using MotoTrust.Application.Validators;
+using MotoTrust.Domain.Enums;
 
 namespace MotoTrust.Application.Commands.Rental;
 
@@ -12,6 +13,11 @@ public class CreateRentalCommand : IRequest<SuccessResponseDto>
     public DateTime DataTermino { get; set; }
     public DateTime DataPrevisaoTermino { get; set; }
     public int Plano { get; set; }
+
+    public RentalPlan GetRentalPlan()
+    {
+        return RentalPlanExtensions.FromDays(Plano);
+    }
 
     public string IsValid()
     {

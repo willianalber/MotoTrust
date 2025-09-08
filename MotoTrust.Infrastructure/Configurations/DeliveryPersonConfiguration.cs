@@ -34,17 +34,21 @@ public class DeliveryPersonConfiguration : IEntityTypeConfiguration<DeliveryPers
             .HasConversion<string>();
 
         builder.Property(e => e.ImagemCNH)
-            .HasMaxLength(1000000); // Para armazenar base64
+            .HasMaxLength(255); // Nome do arquivo
 
         // Índice único para identificador
         builder.HasIndex(e => e.Identificador)
             .IsUnique()
             .HasFilter("IsActive = 1");
 
-        // Índice para CNPJ
-        builder.HasIndex(e => e.CNPJ);
+        // Índice único para CNPJ
+        builder.HasIndex(e => e.CNPJ)
+            .IsUnique()
+            .HasFilter("IsActive = 1");
 
-        // Índice para número da CNH
-        builder.HasIndex(e => e.NumeroCNH);
+        // Índice único para número da CNH
+        builder.HasIndex(e => e.NumeroCNH)
+            .IsUnique()
+            .HasFilter("IsActive = 1");
     }
 }

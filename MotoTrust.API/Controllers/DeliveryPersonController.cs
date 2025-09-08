@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using MotoTrust.Application.Commands.DeliveryPerson;
 using MotoTrust.Application.DTOs;
+using MotoTrust.Application.Interfaces;
 
 namespace MotoTrust.API.Controllers;
 
@@ -10,10 +11,12 @@ namespace MotoTrust.API.Controllers;
 public class DeliveryPersonController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IImageStorageService _imageStorageService;
 
-    public DeliveryPersonController(IMediator mediator)
+    public DeliveryPersonController(IMediator mediator, IImageStorageService imageStorageService)
     {
         _mediator = mediator;
+        _imageStorageService = imageStorageService;
     }
 
     [HttpPost]
@@ -54,6 +57,39 @@ public class DeliveryPersonController : ControllerBase
 
             var result = await _mediator.Send(command);
             return CreatedAtAction(nameof(UpdateCNH), result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new ErrorResponseDto { Mensagem = ex.Message });
+        }
+    }
+
+    [HttpGet("{id}/cnh")]
+    public async Task<IActionResult> GetCNHImage(Guid id)
+    {
+        try
+        {
+            // Aqui você precisaria buscar o entregador pelo ID e obter o nome do arquivo
+            // Por simplicidade, vou criar um endpoint que recebe o nome do arquivo diretamente
+            return BadRequest(new ErrorResponseDto { Mensagem = "Endpoint em desenvolvimento" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new ErrorResponseDto { Mensagem = ex.Message });
+        }
+    }
+
+    [HttpGet("cnh/{fileName}")]
+    public async Task<IActionResult> GetCNHImageByFileName(string fileName)
+    {
+        try
+        {
+            var imageBytes = await _imageStorageService.GetImageAsync(fileName);
+            return File(imageBytes, "image/png", fileName);
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound(new ErrorResponseDto { Mensagem = "Imagem não encontrada" });
         }
         catch (Exception ex)
         {

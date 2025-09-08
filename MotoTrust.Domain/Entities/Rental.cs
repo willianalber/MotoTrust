@@ -24,27 +24,24 @@ public class Rental : EntityBase
     private Rental() { } // EF Core
 
     public Rental(string entregadorId, string motoId, DateTime dataInicio, DateTime dataTermino, 
-                  DateTime dataPrevisaoTermino, decimal valorDiaria, int plano)
+                  DateTime dataPrevisaoTermino, RentalPlan plano)
     {
-        if (dataInicio < DateTime.UtcNow.Date)
-            throw new ArgumentException("Data de início não pode ser no passado", nameof(dataInicio));
+        if (dataInicio != DateTime.UtcNow.Date.AddDays(1))
+            throw new ArgumentException("Data de início deve ser exatamente o primeiro dia após a data de criação", nameof(dataInicio));
 
         if (dataTermino <= dataInicio)
             throw new ArgumentException("Data de término deve ser após a data de início", nameof(dataTermino));
 
-        if (valorDiaria <= 0)
-            throw new ArgumentException("Valor da diária deve ser maior que zero", nameof(valorDiaria));
-
-        if (plano <= 0)
-            throw new ArgumentException("Plano deve ser maior que zero", nameof(plano));
+        if (!RentalPlanExtensions.IsValidPlan((int)plano))
+            throw new ArgumentException($"Plano inválido: {plano}. Planos válidos: 7, 15, 30, 45, 50 dias");
 
         EntregadorId = entregadorId;
         MotoId = motoId;
         DataInicio = dataInicio;
         DataTermino = dataTermino;
         DataPrevisaoTermino = dataPrevisaoTermino;
-        ValorDiaria = valorDiaria;
-        Plano = plano;
+        ValorDiaria = plano.GetDailyRate();
+        Plano = (int)plano;
         Status = RentalStatus.Active;
 
         AddDomainEvent(new MotorcycleRentedEvent(Id, EntregadorId, MotoId, DataInicio, DataPrevisaoTermino));
@@ -101,8 +98,52 @@ public class Rental : EntityBase
             return 0;
 
         var daysOverdue = (DateTime.UtcNow - DataPrevisaoTermino).Days;
-        var lateFeePerDay = ValorDiaria * 0.1m; // 10% da diária por dia de atraso
+        var lateFeePerDay = RentalPlanExtensions.GetLateReturnDailyFee((RentalPlan)Plano);
 
         return lateFeePerDay * daysOverdue;
+    }
+
+    public decimal CalculateEarlyReturnPenalty(DateTime dataDevolucao)
+    {
+        if (dataDevolucao >= DataPrevisaoTermino)
+            return 0;
+
+        var plan = (RentalPlan)Plano;
+        var penaltyPercentage = plan.GetEarlyReturnPenaltyPercentage();
+        
+        if (penaltyPercentage == 0)
+            return 0;
+
+        var daysNotUsed = (DataPrevisaoTermino - dataDevolucao).Days;
+        var unusedDaysValue = daysNotUsed * ValorDiaria;
+        
+        return unusedDaysValue * penaltyPercentage;
+    }
+
+    public decimal CalculateTotalValue(DateTime dataDevolucao)
+    {
+        var daysUsed = (dataDevolucao - DataInicio).Days + 1; // +1 para incluir o dia de início
+        var baseValue = daysUsed * ValorDiaria;
+
+        decimal penalty = 0;
+        
+        if (dataDevolucao < DataPrevisaoTermino)
+        {
+            // Devolução antecipada - multa
+            penalty = CalculateEarlyReturnPenalty(dataDevolucao);
+        }
+        else if (dataDevolucao > DataPrevisaoTermino)
+        {
+            // Devolução atrasada - taxa por dia
+            var daysLate = (dataDevolucao - DataPrevisaoTermino).Days;
+            penalty = daysLate * RentalPlanExtensions.GetLateReturnDailyFee((RentalPlan)Plano);
+        }
+
+        return baseValue + penalty;
+    }
+
+    public RentalPlan GetRentalPlan()
+    {
+        return (RentalPlan)Plano;
     }
 }

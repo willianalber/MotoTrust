@@ -42,8 +42,8 @@ public class CreateDeliveryPersonCommandValidator : AbstractValidator<CreateDeli
         RuleFor(x => x.TipoCNH)
             .NotEmpty()
             .WithMessage("Tipo da CNH é obrigatório")
-            .Matches(@"^[A-C]$")
-            .WithMessage("Tipo da CNH deve ser A, B ou C");
+            .Matches(@"^(A|B|AB)$")
+            .WithMessage("Tipo da CNH deve ser A, B ou AB");
 
         RuleFor(x => x.ImagemCNH)
             .NotEmpty()

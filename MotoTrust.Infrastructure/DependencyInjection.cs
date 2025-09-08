@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MotoTrust.Application.Interfaces;
 using MotoTrust.Domain.Interfaces;
 using MotoTrust.Infrastructure.Data;
 using MotoTrust.Infrastructure.Repositories;
+using MotoTrust.Infrastructure.Services;
 
 namespace MotoTrust.Infrastructure;
 
@@ -18,7 +20,9 @@ public static class DependencyInjection
         services.AddScoped<IMotorcycleRepository, MotorcycleRepository>();
         services.AddScoped<IDeliveryPersonRepository, DeliveryPersonRepository>();
         services.AddScoped<IRentalRepository, RentalRepository>();
+        services.AddScoped<IMotorcycleNotificationRepository, MotorcycleNotificationRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IImageStorageService, ImageStorageService>();
 
         return services;
     }

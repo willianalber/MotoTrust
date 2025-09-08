@@ -1,8 +1,10 @@
 using MediatR;
+using MassTransit;
 using Microsoft.Extensions.Logging;
 using MotoTrust.Application.DTOs;
 using MotoTrust.Domain.Entities;
 using MotoTrust.Domain.Enums;
+using MotoTrust.Domain.Events;
 using MotoTrust.Domain.Interfaces;
 using MotoTrust.Domain.ValueObjects;
 
@@ -13,15 +15,18 @@ public class CreateMotorcycleCommandHandler : IRequestHandler<CreateMotorcycleCo
     private readonly IMotorcycleRepository _motorcycleRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CreateMotorcycleCommandHandler> _logger;
+    private readonly IPublishEndpoint _publishEndpoint;
 
     public CreateMotorcycleCommandHandler(
         IMotorcycleRepository motorcycleRepository, 
         IUnitOfWork unitOfWork,
-        ILogger<CreateMotorcycleCommandHandler> logger)
+        ILogger<CreateMotorcycleCommandHandler> logger,
+        IPublishEndpoint publishEndpoint)
     {
         _motorcycleRepository = motorcycleRepository;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _publishEndpoint = publishEndpoint;
     }
 
     public async Task<CreateMotorcycleResponseDto> Handle(CreateMotorcycleCommand request, CancellationToken cancellationToken)
@@ -52,6 +57,19 @@ public class CreateMotorcycleCommandHandler : IRequestHandler<CreateMotorcycleCo
         await _unitOfWork.SaveChangesAsync();
 
         _logger.LogInformation("Moto criada com sucesso. ID: {MotorcycleId}", motorcycle.Id);
+
+        // Publica evento de moto cadastrada
+        var @event = new MotorcycleCreatedEvent(
+            motorcycle.Id,
+            request.Identificador,
+            motorcycle.Year,
+            motorcycle.Model,
+            motorcycle.LicensePlate,
+            motorcycle.CreatedAt
+        );
+        await _publishEndpoint.Publish(@event, cancellationToken);
+
+        _logger.LogInformation("Evento MotorcycleCreatedEvent publicado para moto {MotorcycleId}", motorcycle.Id);
 
         return new CreateMotorcycleResponseDto
         {
