@@ -22,10 +22,10 @@ Tentei aplicar algumas boas práticas que aprendi ao longo do tempo:
 MotoTrust/
 ├── MotoTrust.Domain/           # Camada de Domínio
 │   ├── Common/                 # Classes base (EntityBase, ValueObject, DomainEvent)
-│   ├── Entities/               # Entidades do domínio (DeliveryPerson, Motorcycle, Rental)
+│   ├── Entities/               # Entidades do domínio (DeliveryPerson, Motorcycle, Rental, MotorcycleNotification)
 │   ├── ValueObjects/           # Objetos de valor (Money)
-│   ├── Enums/                  # Enumerações (MotorcycleStatus, RentalStatus, LicenseType)
-│   ├── Events/                 # Eventos de domínio
+│   ├── Enums/                  # Enumerações (MotorcycleStatus, RentalStatus, LicenseType, RentalPlan)
+│   ├── Events/                 # Eventos de domínio (MotorcycleCreatedEvent, MotorcycleRentedEvent)
 │   └── Interfaces/             # Contratos dos repositórios
 ├── MotoTrust.Application/      # Camada de Aplicação
 │   ├── Commands/               # Comandos CQRS
@@ -35,9 +35,12 @@ MotoTrust/
 ├── MotoTrust.Infrastructure/   # Camada de Infraestrutura
 │   ├── Data/                   # DbContext e configurações do EF
 │   ├── Repositories/           # Implementações dos repositórios
+│   ├── Services/               # Serviços (ImageStorageService)
 │   └── Configurations/         # Configurações das entidades
 ├── MotoTrust.API/              # Camada de Apresentação
 │   └── Controllers/            # Controllers da API
+├── MotoTrust.Consumer/         # Consumer RabbitMQ
+│   └── Consumers/              # Consumidores de eventos
 └── MotoTrust.Tests/            # Testes Unitários
 ```
 
@@ -147,13 +150,22 @@ Implementei um sistema de eventos usando **MassTransit** com **RabbitMQ** para p
 
 ### Como funciona
 
-1. Quando uma moto é alugada, o `CreateRentalCommandHandler` publica um `MotorcycleRentedEvent`
-2. O evento vai para uma fila do RabbitMQ
-3. O `MotoTrust.Consumer` consome o evento e faz o que precisa
+1. Quando uma moto é cadastrada, o `CreateMotorcycleCommandHandler` publica um `MotorcycleCreatedEvent`
+2. Quando uma moto é alugada, o `CreateRentalCommandHandler` publica um `MotorcycleRentedEvent`
+3. Os eventos vão para filas do RabbitMQ
+4. O `MotoTrust.Consumer` consome os eventos e processa conforme necessário
 
 ### Eventos Disponíveis
 
+- **MotorcycleCreatedEvent**: Disparado quando uma moto é cadastrada
 - **MotorcycleRentedEvent**: Disparado quando uma moto é alugada
+
+### Consumidor Especial - Motos 2024
+
+O sistema possui um consumidor especial que monitora motos do ano 2024:
+- Quando uma moto 2024 é cadastrada, uma notificação especial é salva no banco
+- Permite consultas futuras sobre motos 2024 cadastradas
+- Sistema de notificações para casos especiais
 
 ### Por que usei isso?
 
@@ -165,6 +177,17 @@ Implementei um sistema de eventos usando **MassTransit** com **RabbitMQ** para p
 ### Exemplo de Uso
 
 ```csharp
+// No CreateMotorcycleCommandHandler
+var @event = new MotorcycleCreatedEvent(
+    motorcycle.Id,
+    request.Identificador,
+    motorcycle.Year,
+    motorcycle.Model,
+    motorcycle.LicensePlate,
+    motorcycle.CreatedAt
+);
+await _publishEndpoint.Publish(@event, cancellationToken);
+
 // No CreateRentalCommandHandler
 var @event = new MotorcycleRentedEvent(rental.Id, rental.EntregadorId, rental.MotoId, 
     rental.DataInicio, rental.DataPrevisaoTermino);
@@ -193,31 +216,33 @@ dotnet test
 
 ### Motos
 
-- `POST /api/motorcycle` - Cadastrar moto
-- `GET /api/motorcycle/{id}` - Buscar moto por ID
-- `GET /api/motorcycle?placa={placa}` - Listar motos por placa
-- `PUT /api/motorcycle/{id}/placa` - Atualizar placa da moto
-- `DELETE /api/motorcycle/{id}` - Deletar moto (exclusão lógica)
+- `POST /motos` - Cadastrar moto
+- `GET /motos/{id}` - Buscar moto por ID
+- `GET /motos?placa={placa}` - Listar motos por placa
+- `PUT /motos/{id}/placa` - Atualizar placa da moto
+- `DELETE /motos/{id}` - Deletar moto (exclusão lógica)
 
 ### Entregadores
 
-- `POST /api/entregadores` - Cadastrar entregador
-- `POST /api/entregadores/{id}/cnh` - Enviar foto da CNH
+- `POST /entregadores` - Cadastrar entregador
+- `POST /entregadores/{id}/cnh` - Enviar foto da CNH
+- `GET /entregadores/{id}/cnh` - Buscar foto da CNH por ID (em desenvolvimento)
+- `GET /entregadores/cnh/{fileName}` - Buscar foto da CNH por nome do arquivo
 
 ### Locações
 
-- `POST /api/locacao` - Criar locação
-- `GET /api/locacao/{id}` - Buscar locação por ID
-- `PUT /api/locacao/{id}/devolucao` - Informar data de devolução
+- `POST /locacao` - Criar locação
+- `GET /locacao/{id}` - Buscar locação por ID
+- `PUT /locacao/{id}/devolucao` - Informar data de devolução (com cálculo de multa)
 
 ## Arquitetura (resumo)
 
 ### DDD
 
-- **Entidades**: DeliveryPerson, Motorcycle, Rental
+- **Entidades**: DeliveryPerson, Motorcycle, Rental, MotorcycleNotification
 - **Value Objects**: Money
-- **Enums**: MotorcycleStatus, RentalStatus, LicenseType
-- **Eventos**: MotorcycleRentedEvent
+- **Enums**: MotorcycleStatus, RentalStatus, LicenseType, RentalPlan
+- **Eventos**: MotorcycleCreatedEvent, MotorcycleRentedEvent
 
 ### CQRS
 
@@ -247,7 +272,52 @@ Uso ILogger padrão do .NET:
 - Validações centralizadas nos Commands
 - Método `IsValid()` em cada Command
 
-## Melhorias Implementadas
+## Casos de Uso Implementados
+
+### ✅ Administração de Motos
+1. **Cadastro de Moto**: Identificador, Ano, Modelo, Placa (obrigatórios)
+2. **Placa Única**: Validação de unicidade no banco de dados
+3. **Evento de Cadastro**: Geração automática de `MotorcycleCreatedEvent`
+4. **Consumidor Especial**: Notificações automáticas para motos 2024
+5. **Consulta com Filtro**: Busca de motos por placa
+6. **Modificação de Placa**: Atualização de placa cadastrada incorretamente
+7. **Remoção**: Exclusão lógica (sem histórico de locações)
+
+### ✅ Gestão de Entregadores
+8. **Cadastro Completo**: Identificador, Nome, CNPJ, Data Nascimento, CNH, Tipo CNH, Imagem CNH
+9. **Validações de Unicidade**: CNPJ e número da CNH únicos
+10. **Tipos de CNH**: A, B ou AB (ambas)
+11. **Storage de Imagens**: CNH em formato PNG/BMP armazenadas em arquivos
+12. **Atualização de CNH**: Envio de nova foto da CNH
+
+### ✅ Sistema de Locação
+13. **Planos de Locação**: 7, 15, 30, 45, 50 dias com valores específicos
+14. **Validação CNH**: Apenas entregadores com CNH tipo A ou AB podem alugar
+15. **Validação de Data**: Início obrigatoriamente no primeiro dia após criação
+16. **Cálculo de Multas**: 
+    - Devolução antecipada: 20% (7 dias) ou 40% (15 dias) sobre diárias não efetivadas
+    - Devolução atrasada: R$ 50,00 por dia adicional
+17. **Consulta de Valores**: Cálculo detalhado na devolução
+
+## Funcionalidades Implementadas
+
+### Sistema de Locação
+- **Planos de Locação**: 7, 15, 30, 45, 50 dias com valores específicos
+- **Validação CNH**: Apenas entregadores com CNH tipo A ou AB podem alugar
+- **Cálculo de Multas**: 
+  - Devolução antecipada: 20% (7 dias) ou 40% (15 dias) sobre diárias não efetivadas
+  - Devolução atrasada: R$ 50,00 por dia adicional
+- **Validação de Data**: Início obrigatoriamente no primeiro dia após criação
+
+### Sistema de Entregadores
+- **Validações de Unicidade**: CNPJ e número da CNH únicos
+- **Storage de Imagens**: CNH em formato PNG/BMP armazenadas em arquivos
+- **Tipos de CNH**: A, B ou AB (ambas)
+
+### Sistema de Motos
+- **Placa Única**: Validação de unicidade no banco de dados
+- **Eventos**: Geração de eventos para motos cadastradas
+- **Consumidor Especial**: Notificações automáticas para motos 2024
 
 ### Validação com FluentValidation
 - Validações movidas dos handlers para os commands
@@ -263,17 +333,18 @@ Uso ILogger padrão do .NET:
 - Swagger configurado para abrir automaticamente no navegador
 - Portas atualizadas para o ambiente de desenvolvimento
 - Migração de Serilog para ILogger padrão do .NET
+- Sistema de eventos com RabbitMQ e MassTransit
 
 ## Exemplos
 
 ### Cadastrar moto
 
 ```bash
-curl -X POST "https://localhost:7288/api/motorcycle" \
+curl -X POST "http://localhost:5000/motos" \
   -H "Content-Type: application/json" \
   -d '{
     "identificador": "moto123",
-    "ano": 2020,
+    "ano": 2024,
     "modelo": "Mottu Sport",
     "placa": "CDX-0101"
   }'
@@ -282,7 +353,7 @@ curl -X POST "https://localhost:7288/api/motorcycle" \
 ### Cadastrar entregador
 
 ```bash
-curl -X POST "https://localhost:7288/api/entregadores" \
+curl -X POST "http://localhost:5000/entregadores" \
   -H "Content-Type: application/json" \
   -d '{
     "identificador": "entregador123",
@@ -291,23 +362,47 @@ curl -X POST "https://localhost:7288/api/entregadores" \
     "data_nascimento": "1990-01-01T00:00:00Z",
     "numero_cnh": "12345678900",
     "tipo_cnh": "A",
-    "imagem_cnh": "base64string"
+    "imagem_cnh": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
   }'
 ```
 
 ### Criar locação
 
 ```bash
-curl -X POST "https://localhost:7288/api/locacao" \
+curl -X POST "http://localhost:5000/locacao" \
   -H "Content-Type: application/json" \
   -d '{
     "entregador_id": "entregador123",
     "moto_id": "moto123",
-    "data_inicio": "2024-01-01T00:00:00Z",
-    "data_termino": "2024-01-07T23:59:59Z",
-    "data_previsao_termino": "2024-01-07T23:59:59Z",
+    "data_inicio": "2024-12-26T00:00:00Z",
+    "data_termino": "2025-01-02T23:59:59Z",
+    "data_previsao_termino": "2025-01-02T23:59:59Z",
     "plano": 7
   }'
+```
+
+### Informar devolução (com cálculo de multa)
+
+```bash
+curl -X PUT "http://localhost:5000/locacao/{id}/devolucao" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data_devolucao": "2025-01-01T00:00:00Z"
+  }'
+```
+
+**Resposta esperada:**
+```json
+{
+  "mensagem": "Data de devolução informada com sucesso",
+  "valorTotal": 180.00,
+  "valorBase": 150.00,
+  "valorMulta": 30.00,
+  "diasUtilizados": 5,
+  "diasAtraso": 0,
+  "diasAntecipacao": 1,
+  "tipoCalculo": "antecipado"
+}
 ```
 
 ## Contribuição
