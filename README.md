@@ -11,7 +11,6 @@ Tentei aplicar algumas boas práticas que aprendi ao longo do tempo:
 - **Repository Pattern** com Unit of Work
 - **Entity Framework Core** com PostgreSQL
 - **FluentValidation** para validações
-- **AutoMapper** para mapear objetos
 - **ILogger** para logs
 - **Swagger** para documentar a API
 - **MassTransit + RabbitMQ** para eventos assíncronos
