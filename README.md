@@ -434,4 +434,4 @@ MIT License - veja o arquivo LICENSE para detalhes.
 **Willian Alber**
 
 - GitHub: [@willianalber](https://github.com/willianalber)
-- LinkedIn: [Willian Alber](https://linkedin.com/in/willianalber)
+- LinkedIn: [Willian Oliveira](https://www.linkedin.com/in/willian-oliveira-5a6421194/)
